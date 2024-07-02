@@ -1,0 +1,807 @@
+op add callback @counter 1
+jump SelfTest always
+WaitForTrigger:
+read Trigger cell1 25
+jump WaitForTrigger notEqual Trigger 1
+read chunks cell1 24
+read mode cell1 26
+set chunk 0
+jump EncryptChunks equal mode 0
+jump DecryptChunks always
+EncryptChunks:
+op add callback @counter 1
+jump EncryptChunk always
+op add chunk chunk 1
+jump EncryptChunks lessThan chunk chunks
+jump EndProcess always
+DecryptChunks:
+op add callback @counter 1
+jump DecryptChunk always
+op add chunk chunk 1
+jump DecryptChunks lessThan chunk chunks
+EndProcess:
+write 0 cell1 25
+end
+EncryptChunk:
+op mul index chunk 16
+op add read_chunk_call @counter 1
+jump ReadChunk always
+op add chunk_op_call @counter 1
+jump AddIV always
+op add chunk_op_call @counter 1
+jump KeyExpansion always
+set round 0
+op add chunk_op_call @counter 1
+jump AddRoundKey always
+op add round round 1
+EncryptRoundsLoop:
+op add chunk_op_call @counter 1
+jump SubBytes always
+op add chunk_op_call @counter 1
+jump ShiftRows always
+op add chunk_op_call @counter 1
+jump MixColumns always
+op add chunk_op_call @counter 1
+jump AddRoundKey always
+op add round round 1
+jump EncryptRoundsLoop lessThan round 14
+op add chunk_op_call @counter 1
+jump SubBytes always
+op add chunk_op_call @counter 1
+jump ShiftRows always
+op add chunk_op_call @counter 1
+jump AddRoundKey always
+op add chunk_op_call @counter 1
+jump WriteIV always
+op mul index chunk 16
+op add write_chunk_call @counter 1
+jump WriteChunkOut always
+set @counter callback
+KeyExpansion:
+set i 0
+KeyExpansionLoop:
+jump iLessThanN lessThan i 8
+op mod modulo i 8
+jump iGreaterThanNAndI0modN equal modulo 0
+jump iGreaterThanNAndI4modN equal modulo 4
+jump NoConditionsMatch always
+iLessThanN:
+read cur cell1 i
+write cur bank33 i
+jump SkipKeyExpansionLoop always
+iGreaterThanNAndI0modN:
+op sub index i 1
+read word bank33 index
+op add key_schedule_op_call @counter 1
+jump KeyScheduleRotWord always
+op add key_schedule_op_call @counter 1
+jump KeyScheduleSubWord always
+op idiv rconi i 8
+read rcon cell2 rconi
+op shl rcon rcon 24
+op sub index i 8
+read data bank33 index
+op xor cur data rcon
+op xor cur cur word
+write cur bank33 i
+jump SkipKeyExpansionLoop always
+iGreaterThanNAndI4modN:
+op sub index i 1
+read word bank33 index
+op add key_schedule_op_call @counter 1
+jump KeyScheduleSubWord always
+op sub index i 8
+read data bank33 index
+op xor cur data word
+write cur bank33 i
+jump SkipKeyExpansionLoop always
+NoConditionsMatch:
+op sub index i 1
+read word bank33 index
+op sub index i 8
+read data bank33 index
+op xor cur data word
+write cur bank33 i
+SkipKeyExpansionLoop:
+op add i i 1
+jump KeyExpansionLoop lessThan i 64
+set i 0
+set index 0
+KeyScheduleDecompose:
+read word bank33 index
+op add word_byte_call @counter 1
+jump DecomposeWord always
+write byte3 bank36 i
+op add i i 1
+write byte2 bank36 i
+op add i i 1
+write byte1 bank36 i
+op add i i 1
+write byte0 bank36 i
+op add i i 1
+op add index index 1
+jump KeyScheduleDecompose lessThan index 64
+set @counter chunk_op_call
+DecomposeWord:
+op and byte0 word 0xff
+op shr byte1 word 8
+op and byte1 byte1 0xff
+op shr byte2 word 16
+op and byte2 byte2 0xff
+op shr byte3 word 24
+op and byte3 byte3 0xff
+set @counter word_byte_call
+ComposeWord:
+op shl tmp byte1 8
+op or tmp tmp byte0
+op shl tmpa byte2 16
+op or tmp tmp tmpa
+op shl tmpa byte3 24
+op or word tmp tmpa
+set @counter word_byte_call
+KeyScheduleRotWord:
+op add word_byte_call @counter 1
+jump DecomposeWord always
+set tmp1 byte3
+set byte3 byte2
+set byte2 byte1
+set byte1 byte0
+set byte0 tmp1
+op add word_byte_call @counter 1
+jump ComposeWord always
+set @counter key_schedule_op_call
+KeyScheduleSubWord:
+op add word_byte_call @counter 1
+jump DecomposeWord always
+read byte3 bank34 byte3
+read byte2 bank34 byte2
+read byte1 bank34 byte1
+read byte0 bank34 byte0
+op add word_byte_call @counter 1
+jump ComposeWord always
+set @counter key_schedule_op_call
+SubBytes:
+read a00 bank34 a00
+read a01 bank34 a01
+read a02 bank34 a02
+read a03 bank34 a03
+read a10 bank34 a10
+read a11 bank34 a11
+read a12 bank34 a12
+read a13 bank34 a13
+read a20 bank34 a20
+read a21 bank34 a21
+read a22 bank34 a22
+read a23 bank34 a23
+read a30 bank34 a30
+read a31 bank34 a31
+read a32 bank34 a32
+read a33 bank34 a33
+set @counter chunk_op_call
+AddRoundKey:
+op mul kindex round 16
+read k bank36 kindex
+op add kindex kindex 1
+op xor a00 a00 k
+read k bank36 kindex
+op add kindex kindex 1
+op xor a10 a10 k
+read k bank36 kindex
+op add kindex kindex 1
+op xor a20 a20 k
+read k bank36 kindex
+op add kindex kindex 1
+op xor a30 a30 k
+read k bank36 kindex
+op add kindex kindex 1
+op xor a01 a01 k
+read k bank36 kindex
+op add kindex kindex 1
+op xor a11 a11 k
+read k bank36 kindex
+op add kindex kindex 1
+op xor a21 a21 k
+read k bank36 kindex
+op add kindex kindex 1
+op xor a31 a31 k
+read k bank36 kindex
+op add kindex kindex 1
+op xor a02 a02 k
+read k bank36 kindex
+op add kindex kindex 1
+op xor a12 a12 k
+read k bank36 kindex
+op add kindex kindex 1
+op xor a22 a22 k
+read k bank36 kindex
+op add kindex kindex 1
+op xor a32 a32 k
+read k bank36 kindex
+op add kindex kindex 1
+op xor a03 a03 k
+read k bank36 kindex
+op add kindex kindex 1
+op xor a13 a13 k
+read k bank36 kindex
+op add kindex kindex 1
+op xor a23 a23 k
+read k bank36 kindex
+op xor a33 a33 k
+set @counter chunk_op_call
+ShiftRows:
+set tmp1 a10
+set a10 a11
+set a11 a12
+set a12 a13
+set a13 tmp1
+set tmp1 a20
+set tmp2 a21
+set a20 a22
+set a21 a23
+set a22 tmp1
+set a23 tmp2
+set tmp1 a33
+set a33 a32
+set a32 a31
+set a31 a30
+set a30 tmp1
+set @counter chunk_op_call
+MixColumns:
+op xor t a00 a10
+op xor t t a20
+op xor t t a30
+set u a00
+op xor val a00 a10
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a00 a00 val
+op xor val a20 a10
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a10 a10 val
+op xor val a30 a20
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a20 a20 val
+op xor val a30 u
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a30 a30 val
+op xor t a01 a11
+op xor t t a21
+op xor t t a31
+set u a01
+op xor val a01 a11
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a01 a01 val
+op xor val a21 a11
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a11 a11 val
+op xor val a31 a21
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a21 a21 val
+op xor val a31 u
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a31 a31 val
+op xor t a02 a12
+op xor t t a22
+op xor t t a32
+set u a02
+op xor val a02 a12
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a02 a02 val
+op xor val a22 a12
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a12 a12 val
+op xor val a32 a22
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a22 a22 val
+op xor val a32 u
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a32 a32 val
+op xor t a03 a13
+op xor t t a23
+op xor t t a33
+set u a03
+op xor val a03 a13
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a03 a03 val
+op xor val a23 a13
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a13 a13 val
+op xor val a33 a23
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a23 a23 val
+op xor val a33 u
+op add xtime_call @counter 1
+jump xtime always
+op xor val val t
+op xor a33 a33 val
+set @counter chunk_op_call
+xtime:
+jump xtime_high_set greaterThan val 0x7f
+op shl val val 1
+noop
+jump xtime_return always
+xtime_high_set:
+op shl val val 1
+op xor val val 0x1b
+op and val val 0xff
+xtime_return:
+set @counter xtime_call
+InvSubBytes:
+read a00 bank35 a00
+read a01 bank35 a01
+read a02 bank35 a02
+read a03 bank35 a03
+read a10 bank35 a10
+read a11 bank35 a11
+read a12 bank35 a12
+read a13 bank35 a13
+read a20 bank35 a20
+read a21 bank35 a21
+read a22 bank35 a22
+read a23 bank35 a23
+read a30 bank35 a30
+read a31 bank35 a31
+read a32 bank35 a32
+read a33 bank35 a33
+set @counter chunk_op_call
+InvShiftRows:
+set tmp1 a13
+set a13 a12
+set a12 a11
+set a11 a10
+set a10 tmp1
+set tmp1 a23
+set tmp2 a22
+set a23 a21
+set a22 a20
+set a21 tmp1
+set a20 tmp2
+set tmp1 a30
+set a30 a31
+set a31 a32
+set a32 a33
+set a33 tmp1
+set @counter chunk_op_call
+InvMixColumns:
+op xor val a00 a20
+op add xtime_call @counter 1
+jump xtime always
+op add xtime_call @counter 1
+jump xtime always
+set u val
+op xor val a10 a30
+op add xtime_call @counter 1
+jump xtime always
+op add xtime_call @counter 1
+jump xtime always
+set v val
+op xor a00 a00 u
+op xor a10 a10 v
+op xor a20 a20 u
+op xor a30 a30 v
+op xor val a01 a21
+op add xtime_call @counter 1
+jump xtime always
+op add xtime_call @counter 1
+jump xtime always
+set u val
+op xor val a11 a31
+op add xtime_call @counter 1
+jump xtime always
+op add xtime_call @counter 1
+jump xtime always
+set v val
+op xor a01 a01 u
+op xor a11 a11 v
+op xor a21 a21 u
+op xor a31 a31 v
+op xor val a02 a22
+op add xtime_call @counter 1
+jump xtime always
+op add xtime_call @counter 1
+jump xtime always
+set u val
+op xor val a12 a32
+op add xtime_call @counter 1
+jump xtime always
+op add xtime_call @counter 1
+jump xtime always
+set v val
+op xor a02 a02 u
+op xor a12 a12 v
+op xor a22 a22 u
+op xor a32 a32 v
+op xor val a03 a23
+op add xtime_call @counter 1
+jump xtime always
+op add xtime_call @counter 1
+jump xtime always
+set u val
+op xor val a13 a33
+op add xtime_call @counter 1
+jump xtime always
+op add xtime_call @counter 1
+jump xtime always
+set v val
+op xor a03 a03 u
+op xor a13 a13 v
+op xor a23 a23 u
+op xor a33 a33 v
+set prev_chunk_op_call chunk_op_call
+op add chunk_op_call @counter 1
+jump MixColumns always
+set chunk_op_call prev_chunk_op_call
+set @counter chunk_op_call
+ReadInBank:
+op idiv hi index 512
+op mod lo index 512
+getlink hi hi
+read val hi lo
+set @counter bank_call
+WriteInBank:
+op idiv hi index 512
+op mod lo index 512
+getlink hi hi
+write val hi lo
+set @counter bank_call
+WriteOutBank:
+op idiv hi index 512
+op mod lo index 512
+op add hi hi 16
+getlink hi hi
+write val hi lo
+set @counter bank_call
+ReadChunk:
+op add bank_call @counter 1
+jump ReadInBank always
+set a00 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a10 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a20 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a30 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a01 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a11 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a21 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a31 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a02 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a12 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a22 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a32 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a03 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a13 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a23 val
+op add index index 1
+op add bank_call @counter 1
+jump ReadInBank always
+set a33 val
+set @counter read_chunk_call
+WriteChunkOut:
+set val a00
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a10
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a20
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a30
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a01
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a11
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a21
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a31
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a02
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a12
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a22
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a32
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a03
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a13
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a23
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set val a33
+op add bank_call @counter 1
+jump WriteOutBank always
+op add index index 1
+set @counter write_chunk_call
+DecryptChunk:
+op mul index chunk 16
+op add read_chunk_call @counter 1
+jump ReadChunk always
+op add chunk_op_call @counter 1
+jump BackupMatrix always
+op add chunk_op_call @counter 1
+jump KeyExpansion always
+set round 14
+op add chunk_op_call @counter 1
+jump AddRoundKey always
+op add chunk_op_call @counter 1
+jump InvShiftRows always
+op add chunk_op_call @counter 1
+jump InvSubBytes always
+op sub round round 1
+DecryptRoundsLoop:
+op add chunk_op_call @counter 1
+jump AddRoundKey always
+op add chunk_op_call @counter 1
+jump InvMixColumns always
+op add chunk_op_call @counter 1
+jump InvShiftRows always
+op add chunk_op_call @counter 1
+jump InvSubBytes always
+op sub round round 1
+jump DecryptRoundsLoop greaterThan round 0
+op add chunk_op_call @counter 1
+jump AddRoundKey always
+op mul index chunk 16
+op add chunk_op_call @counter 1
+jump AddIV always
+op add write_chunk_call @counter 1
+jump WriteChunkOut always
+op add chunk_op_call @counter 1
+jump RestoreMatrix always
+op add chunk_op_call @counter 1
+jump WriteIV always
+set @counter callback
+AddIV:
+set kindex 8
+read k cell1 kindex
+op add kindex kindex 1
+op xor a00 a00 k
+read k cell1 kindex
+op add kindex kindex 1
+op xor a10 a10 k
+read k cell1 kindex
+op add kindex kindex 1
+op xor a20 a20 k
+read k cell1 kindex
+op add kindex kindex 1
+op xor a30 a30 k
+read k cell1 kindex
+op add kindex kindex 1
+op xor a01 a01 k
+read k cell1 kindex
+op add kindex kindex 1
+op xor a11 a11 k
+read k cell1 kindex
+op add kindex kindex 1
+op xor a21 a21 k
+read k cell1 kindex
+op add kindex kindex 1
+op xor a31 a31 k
+read k cell1 kindex
+op add kindex kindex 1
+op xor a02 a02 k
+read k cell1 kindex
+op add kindex kindex 1
+op xor a12 a12 k
+read k cell1 kindex
+op add kindex kindex 1
+op xor a22 a22 k
+read k cell1 kindex
+op add kindex kindex 1
+op xor a32 a32 k
+read k cell1 kindex
+op add kindex kindex 1
+op xor a03 a03 k
+read k cell1 kindex
+op add kindex kindex 1
+op xor a13 a13 k
+read k cell1 kindex
+op add kindex kindex 1
+op xor a23 a23 k
+read k cell1 kindex
+op xor a33 a33 k
+set @counter chunk_op_call
+WriteIV:
+write a00 cell1 8
+write a10 cell1 9
+write a20 cell1 10
+write a30 cell1 11
+write a01 cell1 12
+write a11 cell1 13
+write a21 cell1 14
+write a31 cell1 15
+write a02 cell1 16
+write a12 cell1 17
+write a22 cell1 18
+write a32 cell1 19
+write a03 cell1 20
+write a13 cell1 21
+write a23 cell1 22
+write a33 cell1 23
+set @counter chunk_op_call
+BackupMatrix:
+set b00 a00
+set b10 a10
+set b20 a20
+set b30 a30
+set b01 a01
+set b11 a11
+set b21 a21
+set b31 a31
+set b02 a02
+set b12 a12
+set b22 a22
+set b32 a32
+set b03 a03
+set b13 a13
+set b23 a23
+set b33 a33
+set @counter chunk_op_call
+RestoreMatrix:
+set a00 b00
+set a10 b10
+set a20 b20
+set a30 b30
+set a01 b01
+set a11 b11
+set a21 b21
+set a31 b31
+set a02 b02
+set a12 b12
+set a22 b22
+set a32 b32
+set a03 b03
+set a13 b13
+set a23 b23
+set b33 a33
+set @counter chunk_op_call
+SelfTest:
+set a00 1
+set a10 2
+set a20 3
+set a30 4
+set a01 5
+set a11 6
+set a21 7
+set a31 8
+set a02 9
+set a12 10
+set a22 11
+set a32 12
+set a03 13
+set a13 14
+set a23 15
+set a33 16
+op add chunk_op_call @counter 1
+jump SubBytes always
+op add chunk_op_call @counter 1
+jump MixColumns always
+op add chunk_op_call @counter 1
+jump ShiftRows always
+op add chunk_op_call @counter 1
+jump InvShiftRows always
+op add chunk_op_call @counter 1
+jump InvMixColumns always
+op add chunk_op_call @counter 1
+jump InvSubBytes always
+jump SelfTestFail notEqual a00 1
+jump SelfTestFail notEqual a10 2
+jump SelfTestFail notEqual a20 3
+jump SelfTestFail notEqual a30 4
+jump SelfTestFail notEqual a01 5
+jump SelfTestFail notEqual a11 6
+jump SelfTestFail notEqual a21 7
+jump SelfTestFail notEqual a31 8
+jump SelfTestFail notEqual a02 9
+jump SelfTestFail notEqual a12 10
+jump SelfTestFail notEqual a22 11
+jump SelfTestFail notEqual a32 12
+jump SelfTestFail notEqual a03 13
+jump SelfTestFail notEqual a13 14
+jump SelfTestFail notEqual a23 15
+jump SelfTestFail notEqual a33 16
+set @counter callback
+SelfTestFail:
+set selfcheck_fail 1
+jump SelfTestFail always
+set license "GPLv3"
+set author "6f6626"

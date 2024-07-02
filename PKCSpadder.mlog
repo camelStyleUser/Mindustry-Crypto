@@ -1,0 +1,98 @@
+waitfortrigger:
+read trigger cell1 0
+jump waitfortrigger notEqual trigger 1
+read mode cell1 1
+jump DataPadder equal mode 0
+jump DataUnpadder always
+DataPadder:
+read len cell1 2
+set i 0
+jump SkipCopyData equal len 0
+CopyData:
+op idiv hi i 512
+op mod lo i 512
+op add outbank hi 16
+getlink inbank hi
+getlink outbank outbank
+read val inbank lo
+write val outbank lo
+op add i i 1
+jump CopyData lessThan i len
+SkipCopyData:
+op mod pad len 16
+op sub pad 16 pad
+set padi pad
+PadData:
+op idiv hi i 512
+op add hi hi 16
+op mod lo i 512
+getlink outbank hi
+write pad outbank lo
+op add i i 1
+op sub padi padi 1
+jump PadData greaterThan padi 0
+write 0 cell1 0
+op idiv chunks i 16
+write chunks cell1 2
+jump waitfortrigger always
+DataUnpadder:
+read chunks cell1 2
+op sub chunktarg chunks 1
+set chunk 0
+jump SkipCopyUnpadData equal chunks 1
+CopyUnpadData:
+op mul i chunk 16
+op mul targ chunk 16
+op add targ targ 16
+CopyUnpadDataInner:
+op idiv hi i 512
+op mod lo i 512
+op add outbank hi 16
+getlink inbank hi
+getlink outbank outbank
+read val inbank lo
+write val outbank lo
+op add i i 1
+jump CopyUnpadDataInner lessThan i targ
+op add chunk chunk 1
+jump CopyUnpadData lessThan chunk chunktarg
+SkipCopyUnpadData:
+op mul i chunk 16
+op add i i 15
+op idiv hi i 512
+op mod lo i 512
+op add outbank hi 16
+getlink inbank hi
+getlink outbank outbank
+read pad inbank lo
+jump FailUnpad greaterThan pad 16
+op sub padi pad 1
+op sub i i 1
+RemovePaddingLoop:
+op idiv hi i 512
+op mod lo i 512
+getlink inbank hi
+read val inbank lo
+jump FailUnpad notEqual val pad
+op sub i i 1
+op sub padi padi 1
+jump RemovePaddingLoop greaterThan padi 0
+op mul targ chunk 16
+WriteWithoutPadding:
+op idiv hi i 512
+op mod lo i 512
+op add outbank hi 16
+getlink inbank hi
+getlink outbank outbank
+read val inbank lo
+write val outbank lo
+op sub i i 1
+jump WriteWithoutPadding greaterThanEq i targ
+write 0 cell1 0
+op mul len chunks 16
+op sub len len pad
+write len cell1 3
+jump waitfortrigger always
+FailUnpad:
+write 2 cell1 0
+jump waitfortrigger always

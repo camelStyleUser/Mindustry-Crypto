@@ -1,0 +1,72 @@
+wait_for_data:
+read bytes cell1 0
+read ready cell1 1
+jump wait_for_data equal ready 0
+set i 0
+jump stop_copy_data equal bytes 0
+copy_data:
+op add callback @counter 1
+jump read_byte always
+op add callback @counter 1
+jump write_to_hasher always
+op add i i 1
+jump copy_data lessThan i bytes
+stop_copy_data:
+set val 0x80
+op add callback @counter 1
+jump write_to_hasher always
+op add i i 1
+op mod loc i 64
+jump skip_padding equal loc 56
+set val 0x00
+pad_data:
+op add callback @counter 1
+jump write_to_hasher always
+op add i i 1
+op mod loc i 64
+jump pad_data notEqual loc 56
+skip_padding:
+op idiv bank i 2048
+op idiv hi i 4
+op mod hi hi 512
+op add bank bank 16
+getlink bank bank
+write 0 bank hi
+op add i i 4
+op mul L bytes 8
+op idiv bank i 2048
+op idiv hi i 4
+op mod hi hi 512
+op add bank bank 16
+getlink bank bank
+write L bank hi
+op add i i 4
+op idiv chunks i 64
+write chunks cell2 0
+write 0 cell1 1
+end
+write_to_hasher:
+op idiv bank i 2048
+op idiv hi i 4
+op mod hi hi 512
+op mod lo i 4
+op add bank bank 16
+getlink bank bank
+read prev bank hi
+op sub lo 3 lo
+set mask 0xffffffff
+set shiftedmask 0xff
+op mul shift lo 8
+op shl shiftedmask shiftedmask shift
+op xor mask mask shiftedmask
+op and data prev mask
+op shl ndata val shift
+op or data data ndata
+write data bank hi
+set @counter callback
+read_byte:
+op idiv bank i 512
+op mod index i 512
+getlink bank bank
+read val bank index
+set @counter callback
